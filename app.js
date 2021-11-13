@@ -12,21 +12,50 @@ const api = process.env.API_URL
 app.use(bodyParser.json())//to parse json requests for the server
 app.use(morgan('tiny'))//morgan is used to log requests, tiny is parameter
 
-app.get(`${api}/products`,(req,res)=>{//Broswer to Server
-    const product = {
-        id: 1,
-        name: 'cheese',
-        image: 'some_url'
-    }
-    res.send(product)
+
+
+const productSchema = mongoose.Schema({
+    name:String,
+    image:String,
+    countInStock:Number
 })
 
-//mongoose.connect()
+const Product = mongoose.model('Product',productSchema)  //This is model
+
+app.get(`${api}/products`,async (req,res)=>{//Broswer to Server
+    const productList = await Product.find()
+    if(!productList){
+        res.status(500).json({success:false})
+    }
+    res.send(productList)
+})
+
+mongoose.connect(process.env.CONNECTION_STRING,{
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+    dbName: 'eshop-database'
+})
+.then(()=>{
+    console.log('Database Connection is ready...')
+})
+.catch((err)=>{
+    console.log(err)
+})
 
 app.post(`${api}/products`,(req,res)=>{//client wil post request to the server in JSON form. But for server to understnd tat json we need a middleware such as body-parser
-    const newProduct= req.body//jo bhi request hum bhejenge woh server mein product ban jayega. For example filing a complain report, filling a bio data ,giving exams etc.
-    console.log(newProduct)
-    res.send(newProduct)
+    const product = new Product({
+        name:req.body.name,
+        image:req.body.image,
+        countInStock:req.body.countInStock
+    })
+    product.save().then((createdProduct=>{
+        res.status(201).json(createdProduct)//tell client his product has been created
+    })).catch((err)=>{
+        res.status(500).json({
+            error:err,
+            success:false
+        })
+    })
 })
 app.listen(3000,()=>{//this is the server starting code
     console.log('server is running http://localhost:3000')
